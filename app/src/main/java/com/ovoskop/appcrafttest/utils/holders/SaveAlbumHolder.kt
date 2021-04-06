@@ -10,6 +10,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.ovoskop.appcrafttest.R
 import com.ovoskop.appcrafttest.database.entities.AlbumRoom
 import com.ovoskop.appcrafttest.utils.app
+import com.ovoskop.appcrafttest.utils.deleteFile
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -36,6 +37,19 @@ class SaveAlbumHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         delete.setOnClickListener {
             val db = fragment.requireContext().app.database
             val albums = db.albumDAO()
+            val previews = db.photoDAO()
+
+            previews.getByAlbum(album.id ?: -1).observe(fragment.viewLifecycleOwner) {
+
+                for (photo in it) {
+                    deleteFile(fragment.requireContext(), photo.thumbnailUrl, "150")
+                    deleteFile(fragment.requireContext(), photo.url, "600")
+
+                    CoroutineScope(Dispatchers.IO).launch {
+                        previews.delete(photo)
+                    }
+                }
+            }
 
             CoroutineScope(Dispatchers.IO).launch {
                 albums.delete(album)

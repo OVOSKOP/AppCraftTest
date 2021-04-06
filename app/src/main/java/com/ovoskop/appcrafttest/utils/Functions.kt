@@ -1,7 +1,10 @@
 package com.ovoskop.appcrafttest.utils
 
 import android.app.Activity
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.Context
+import android.content.Intent
 import android.graphics.Bitmap
 import android.net.ConnectivityManager
 import android.net.Network
@@ -9,6 +12,10 @@ import android.net.NetworkCapabilities
 import android.os.Build
 import android.os.Environment
 import android.util.DisplayMetrics
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.Observer
 import com.ovoskop.appcrafttest.R
 import com.squareup.picasso.Picasso
 import java.io.File
@@ -16,6 +23,15 @@ import java.io.FileOutputStream
 
 val Context.app : App
     get() = this.applicationContext as App
+
+fun <T> LiveData<T>.observeForeverOnce( observer: Observer<T>) {
+    observeForever(object : Observer<T> {
+        override fun onChanged(t: T?) {
+            observer.onChanged(t)
+            removeObserver(this)
+        }
+    })
+}
 
 fun getWidthImage(context: Context, span: Int): Int {
     val metrics = DisplayMetrics()
@@ -98,6 +114,17 @@ fun getFileUri(context: Context, fName: String?, size: String) : File {
     return File(myDir, fName.toString())
 }
 
+fun deleteFile(context: Context, filename: String?, size: String) {
+    val root = context.getExternalFilesDir(null)?.absolutePath
+    val myDir = File("$root/saved_images/$size")
+
+    val file = File(myDir, filename.toString())
+    println(file.absolutePath)
+    if (file.exists()) { file.delete()
+        println("EXIST") }
+    println("DELETE?")
+}
+
 fun isNetworkConnected(context: Context): Boolean {
     val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
     if (Build.VERSION.SDK_INT < 23) {
@@ -114,4 +141,18 @@ fun isNetworkConnected(context: Context): Boolean {
         }
     }
     return false
+}
+
+fun createNotificationChannel(context: Context) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        val name = context.getString(R.string.channel_name)
+        val descriptionText = context.getString(R.string.channel_description)
+        val importance = NotificationManager.IMPORTANCE_DEFAULT
+        val channel = NotificationChannel(CHANNEL_ID, name, importance).apply {
+            description = descriptionText
+        }
+        val notificationManager: NotificationManager? =
+            ContextCompat.getSystemService(context, NotificationManager::class.java)
+        notificationManager?.createNotificationChannel(channel)
+    }
 }

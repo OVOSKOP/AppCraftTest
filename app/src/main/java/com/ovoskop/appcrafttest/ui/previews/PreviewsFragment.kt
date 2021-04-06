@@ -9,6 +9,8 @@ import android.view.ViewGroup
 import android.widget.ProgressBar
 import androidx.cardview.widget.CardView
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.Observer
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.floatingactionbutton.FloatingActionButton
@@ -23,18 +25,12 @@ import com.ovoskop.appcrafttest.network.pojo.Album
 import com.ovoskop.appcrafttest.network.pojo.Photo
 import com.ovoskop.appcrafttest.network.services.AlbumsService
 import com.ovoskop.appcrafttest.network.services.PreviewsService
-import com.ovoskop.appcrafttest.utils.BASE_URL
+import com.ovoskop.appcrafttest.utils.*
 import com.ovoskop.appcrafttest.utils.adapters.AlbumsAdapter
 import com.ovoskop.appcrafttest.utils.adapters.PreviewAdapter
 import com.ovoskop.appcrafttest.utils.adapters.SavePreviewAdapter
-import com.ovoskop.appcrafttest.utils.app
 import com.ovoskop.appcrafttest.utils.decorators.PreviewsDecorator
-import com.ovoskop.appcrafttest.utils.getWidthImage
-import com.ovoskop.appcrafttest.utils.saveImage
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.*
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
@@ -54,8 +50,11 @@ class PreviewsFragment : Fragment() {
     private lateinit var albums: AlbumDAO
     private lateinit var previews: PhotoDAO
 
+    private var save: Job? = null
+
     private var albumId: Int = -1
     private var saved = false
+    private var isSaving = false
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -71,7 +70,7 @@ class PreviewsFragment : Fragment() {
         albums = db.albumDAO()
         previews = db.photoDAO()
 
-        if (!saved) {
+        if (!saved && isNetworkConnected(requireContext())) {
             albums.getById(albumId).observe(viewLifecycleOwner) {
                 if (it == null) {
                     saveAlbum.visibility = View.VISIBLE
@@ -99,12 +98,64 @@ class PreviewsFragment : Fragment() {
         }
 
         if (!saved) {
-            getPreviews()
+            if (isNetworkConnected(requireContext())) {
+                getPreviews()
+            }
         } else {
             getSavedPreviews()
         }
 
         return root
+    }
+
+    override fun onStop() {
+        if (isSaving) {
+            save?.cancel()
+            previews.getByAlbum(albumId).observeForeverOnce(object : Observer<List<PhotoRoom>> {
+
+                override fun onChanged(listPhotos: List<PhotoRoom>?) {
+                    println(listPhotos)
+                    if (listPhotos.isNullOrEmpty()) {
+                        previews.getByAlbum(albumId).removeObserver(this)
+                    } else {
+
+                        for (photo in listPhotos) {
+                            deleteFile(requireContext(), photo.thumbnailUrl, "150")
+                            deleteFile(requireContext(), photo.url, "600")
+
+                            CoroutineScope(Dispatchers.IO).launch {
+                                previews.delete(photo)
+                            }
+                        }
+
+                        previews.getByAlbum(albumId).removeObserver(this)
+
+                    }
+
+                }
+
+            })
+
+            albums.getById(albumId).observeForeverOnce(object : Observer<AlbumRoom> {
+
+                override fun onChanged(albumsList: AlbumRoom?) {
+                    val observer = this
+
+                    if (albumsList != null) {
+                        CoroutineScope(Dispatchers.IO).launch {
+                            albums.delete(albumsList)
+                        }
+                    } else {
+                        albums.getById(albumId).removeObserver(observer)
+                    }
+
+                }
+            })
+
+        }
+
+        super.onStop()
+
     }
 
     private fun getPreviews() {
@@ -128,33 +179,46 @@ class PreviewsFragment : Fragment() {
     }
 
     private fun saveAlbum() {
-        CoroutineScope(Dispatchers.IO).launch {
+        isSaving = true
+        save = CoroutineScope(Dispatchers.IO).launch {
             val album = NetworkController().getAlbum(albumId)
             val photos = NetworkController().getPreviews(albumId)
 
             for (photo in photos) {
-                val url = saveImage(requireContext(), photo.url, "600")
-                val thumbnailUrl = saveImage(requireContext(), photo.thumbnailUrl, "150")
 
-                val photoRoom = PhotoRoom(
-                    photo.albumId,
-                    photo.id,
-                    photo.title,
-                    url,
-                    thumbnailUrl
-                )
+                var url = ""
+                var thumbnailUrl = ""
+                if (isAdded) {
+                    url = saveImage(requireContext(), photo.url, "600")
+                }
+                if (isAdded) {
+                    thumbnailUrl = saveImage(requireContext(), photo.thumbnailUrl, "150")
+                }
 
-                previews.insert(photoRoom)
+                if (isAdded) {
+                    val photoRoom = PhotoRoom(
+                            photo.albumId,
+                            photo.id,
+                            photo.title,
+                            url,
+                            thumbnailUrl
+                    )
+
+                    previews.insert(photoRoom)
+                }
+
             }
 
-            val albumRoom = AlbumRoom(album.userId, album.id, album.title)
-            albums.insert(albumRoom)
+            if (isAdded) {
+                val albumRoom = AlbumRoom(album.userId, album.id, album.title)
+                albums.insert(albumRoom)
+            }
 
             withContext(Dispatchers.Main) {
                 progress.visibility = View.GONE
                 saveAlbum.visibility = View.GONE
+                isSaving = false
             }
-
         }
     }
 

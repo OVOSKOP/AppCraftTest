@@ -4,4 +4,9 @@
     <string name="title_saved">Сохраненное</string>
     <string name="title_location">Геолокация</string>
     <string name="title_previews">Фотографии</string>
+
+    <string name="channel_name">Отслеживание локации</string>
+    <string name="channel_description">Уведомления отслеживания локации</string>
+
+    <string name="coords">%1$.6f, %2$.6f</string>
 </resources>

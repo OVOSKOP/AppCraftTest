@@ -9,6 +9,7 @@ import androidx.navigation.ui.setupActionBarWithNavController
 import androidx.navigation.ui.setupWithNavController
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.ovoskop.appcrafttest.R
+import com.ovoskop.appcrafttest.utils.createNotificationChannel
 
 class MainActivity : AppCompatActivity() {
 
@@ -28,6 +29,7 @@ class MainActivity : AppCompatActivity() {
         setupActionBarWithNavController(navController, appBarConfiguration)
         navView.setupWithNavController(navController)
 
+        createNotificationChannel(this)
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
