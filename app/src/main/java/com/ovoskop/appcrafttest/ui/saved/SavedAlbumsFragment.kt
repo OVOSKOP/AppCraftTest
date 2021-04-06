@@ -1,4 +1,4 @@
-package com.ovoskop.appcrafttest.ui.dashboard
+package com.ovoskop.appcrafttest.ui.saved
 
 import android.os.Bundle
 import android.view.LayoutInflater

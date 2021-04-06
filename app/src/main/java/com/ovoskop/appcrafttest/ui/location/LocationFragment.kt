@@ -1,4 +1,4 @@
-package com.ovoskop.appcrafttest.ui.notifications
+package com.ovoskop.appcrafttest.ui.location
 
 import android.Manifest
 import android.app.AlertDialog
