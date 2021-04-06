@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">AppCraftTest</string>
+    <string name="title_albums">Альбомы</string>
+    <string name="title_saved">Сохраненное</string>
+    <string name="title_location">Геолокация</string>
+    <string name="title_previews">Фотографии</string>
+</resources>
