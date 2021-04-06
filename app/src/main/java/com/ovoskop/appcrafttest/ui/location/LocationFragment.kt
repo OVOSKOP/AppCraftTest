@@ -32,6 +32,7 @@ class LocationFragment : Fragment() {
     private var mLocationPermissionGranted = false
 
     private var mService: LocationService? = null
+    private lateinit var permissionsController: PermissionsController
 
     private val connection: ServiceConnection = object  : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
@@ -65,7 +66,9 @@ class LocationFragment : Fragment() {
             container: ViewGroup?,
             savedInstanceState: Bundle?
     ): View? {
-        getLocationPermission()
+        permissionsController = PermissionsController(this)
+
+        mLocationPermissionGranted = permissionsController.getLocationPermission()
 
         val root = inflater.inflate(R.layout.fragment_location, container, false)
 
@@ -100,19 +103,6 @@ class LocationFragment : Fragment() {
         mService?.removeLocationListener()
     }
 
-    private fun stopService() {
-        val intent = Intent(requireContext(), LocationService::class.java)
-        requireActivity().unbindService(connection)
-        requireActivity().stopService(intent)
-    }
-
-    private fun startService() {
-        val intent = Intent(requireContext(), LocationService::class.java)
-        requireActivity().startService(intent)
-        requireActivity().bindService(intent, connection, 0)
-    }
-
-
     override fun onRequestPermissionsResult(
         requestCode: Int,
         permissions: Array<String?>,
@@ -129,77 +119,23 @@ class LocationFragment : Fragment() {
                     mLocationPermissionGranted = true
 
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                        getSettingsPermissions()
+                        permissionsController.getSettingsPermissions()
                     }
                 }
             }
         }
     }
 
-
-    private fun getLocationPermission() {
-        if (ContextCompat.checkSelfPermission(
-                requireContext(),
-                Manifest.permission.ACCESS_FINE_LOCATION
-            )
-            == PackageManager.PERMISSION_GRANTED
-        ) {
-            Log.d("per", "true1")
-            mLocationPermissionGranted = true
-
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                Log.d("TESTPER", "HELLO")
-                getSettingsPermissions()
-            }
-        } else {
-            Log.d("per", "false1")
-            mLocationPermissionGranted = false
-            getPermissions()
-        }
+    private fun stopService() {
+        val intent = Intent(requireContext(), LocationService::class.java)
+        requireActivity().unbindService(connection)
+        requireActivity().stopService(intent)
     }
 
-    private fun getPermissions() {
-        requestPermissions(
-            arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION)
-    }
-
-    @RequiresApi(Build.VERSION_CODES.Q)
-    fun getSettingsPermissions() {
-        if (requireActivity().shouldShowRequestPermissionRationale(Manifest.permission.ACCESS_BACKGROUND_LOCATION)) {
-            getAlert()
-        }
-    }
-
-    private fun getAlert() {
-
-        val alertDialog = AlertDialog.Builder(requireContext())
-            .setTitle("Требуется дополнительное разрешение")
-            .setMessage("Для полной функциональности приложения необходимо разрешение получения вашего местоположения, когда приложение закрыто.")
-            .setIcon(android.R.drawable.ic_dialog_alert)
-            .setPositiveButton("Включить", null)
-            .setNegativeButton("Отмена", null)
-            .create()
-
-        alertDialog.setOnShowListener {
-            Log.d("openAlert", "OPEN")
-            val positiveBtn = alertDialog.getButton(AlertDialog.BUTTON_POSITIVE)
-            val negativeBtn = alertDialog.getButton(AlertDialog.BUTTON_NEGATIVE)
-
-            positiveBtn.setOnClickListener {
-                alertDialog.dismiss()
-
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    requestPermissions(arrayOf(Manifest.permission.ACCESS_BACKGROUND_LOCATION), PERMISSIONS_REQUEST_ACCESS_FINE_LOCATION)
-                }
-            }
-            negativeBtn.setOnClickListener {
-                alertDialog.dismiss()
-
-            }
-        }
-
-        alertDialog.show()
-
+    private fun startService() {
+        val intent = Intent(requireContext(), LocationService::class.java)
+        requireActivity().startService(intent)
+        requireActivity().bindService(intent, connection, 0)
     }
 
 }
